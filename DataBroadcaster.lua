@@ -1,4 +1,5 @@
-
+----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
 function is_quik()
     if getScriptPath then return true else return false end
 end
@@ -6,6 +7,8 @@ end
 quikVersion = nil
 script_path = "."
 
+
+-- Loading suitable lua core lib for Quik
 if is_quik() then
     script_path = getScriptPath()
     
