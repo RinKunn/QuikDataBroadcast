@@ -2,7 +2,7 @@
 local quikfunc = {}
 
 local json = require ("libs.dkjson")
-local json = require ("fields")
+require ("fields")
 
 
 function getSecurityQuotesInfo(class, sec)

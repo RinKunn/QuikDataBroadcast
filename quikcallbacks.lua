@@ -14,7 +14,7 @@ local tickId = 0
 function OnInit()
 	is_quik_connected = numberToBool(isConnected())
 	printConfigsToLog()
-	if queue == nil then 
+	if queue == nil then
 		queue = deque.new()
 		logger:info("Queue is initialized")
 	end
@@ -23,10 +23,10 @@ end
 
 -- При остановке скрипта
 function OnStop(s)
+	is_started = false
 	message("Script Stopped")
 	logger:info("Script Stopped")
-	is_started = false
-	closeSocket()
+	--closeSocket()
     return 1000
 end
 
@@ -60,4 +60,23 @@ function OnClose()
    closeSocket()
 end
 
+
+
+
+function printConfigsToLog()
+	logger:info("-------------------------")
+	logger:info("Detected Quik version: ".. quikVersion .." and using cpath: "..package.cpath  , 0)
+	logger:info("Parameters:")
+	logger:info("host=%s, port=%s", CALLBACK_HOST, CALLBACK_PORT)
+	logger:info("Normal delay=%d ms, Boost delay=%d ms,", DEFAULT_PROCC_TIME, BOOST_PROCC_TIME)
+	logger:info("Cache path=%s", cache_path)
+	if cacheIsEmpty() then 
+		logger:info("Cache file is empty")
+	else
+		logger:info("Cache file has datas")
+	end
+	logger:info("Connection with Quik's DataServer: %s", numberToBool(isConnected()))
+	logger:info("Connection with Remote data receiver: %s", tostring(is_connected))
+	logger:info("-------------------------")
+end
 return quikcallbacks

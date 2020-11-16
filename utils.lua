@@ -4,15 +4,13 @@ local json = require ("libs.dkjson")
 local deque = require ("libs.deque")
 require ("config")
 
-
 local utils = {}
-
-local is_connected = false
-local is_quik_connected = false
 
 local callback_client
 
-function ensureConnected()
+utils.is_connected = false
+
+function utils:ensureConnected()
     if not callback_client then
 		logger:warn("Trying to connecting to server: "..CALLBACK_HOST..":"..CALLBACK_PORT)
 		callback_client = socket.connect(CALLBACK_HOST, CALLBACK_PORT)
@@ -47,7 +45,7 @@ end
 
 function closeSocket()
 	if is_connected then
-		logger:info("Closing socket with %s:%s...", host, port)
+		logger:info("Closing socket with %s:%s...", CALLBACK_HOST, CALLBACK_PORT)
 		is_connected = false
 		logger:info("Отправлено %d сообщений", message_sended_count)
 		if callback_client then
@@ -55,11 +53,6 @@ function closeSocket()
 			callback_client = nil
 		end
 	end
-end
-
-
-function queueLenGreater(count)
-	return queue:length() > count
 end
 
 ----------------CACHE-----------------
@@ -146,22 +139,7 @@ end
 
 
 
-function printConfigsToLog()
-	logger:info("-------------------------")
-	logger:info("Detected Quik version: ".. quikVersion .." and using cpath: "..package.cpath  , 0)
-	logger:info("Parameters:")
-	logger:info("host=%s, port=%s", CALLBACK_HOST, CALLBACK_PORT)
-	logger:info("Normal delay=%d ms, Boost delay=%d ms,", DEFAULT_PROCC_TIME, BOOST_PROCC_TIME)
-	logger:info("Cache path=%s", cache_path)
-	if cacheIsEmpty() then 
-		logger:info("Cache file is empty")
-	else
-		logger:info("Cache file has datas")
-	end
-	logger:info("Connection with Quik's DataServer: %s", numberToBool(isConnected()))
-	logger:info("Connection with Remote data receiver: %s", tostring(is_connected))
-	logger:info("-------------------------")
-end
+
 
 
 

@@ -51,11 +51,14 @@ local deque = require ("libs.deque")
 
 logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n")
 
-local is_started = true
-local queue = deque.new()
+is_started = false
+is_connected = false
+is_quik_connected = false
+
+queue = nil
 
 
-local message_sended_count = 0
+message_sended_count = 0
 
 
 function main()
@@ -84,6 +87,7 @@ function main()
 			closeSocket()
 		end
 	end
+	
 	if queue:length() > 0 then
 		logger:info("Queue isn't empty: %d", queue:length())
 		addQueueToCache()
