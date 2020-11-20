@@ -11,17 +11,10 @@ function qdbccache:create(basedirpath)
 	return r
 end
 
-
 -- Is Cache empty
 function qdbccache:isEmpty()
-	qdbccache:testst()
 	return not exists_file(self.cache_path)
 end
-
-local function testst(self)
-	message("hello")
-end
-
 
 -- Add object to cache
 function qdbccache:append(obj)
