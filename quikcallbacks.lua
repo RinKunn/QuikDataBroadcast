@@ -1,5 +1,5 @@
 
-package.path = package.path..";"..".\\?.lua;"..".\\?.luac"
+
 
 local quikcallbacks = {}
 
@@ -8,11 +8,11 @@ require ("utils")
 require ("quikfunc")
 require ("config")
 
-local tickId = 0
 
 -- При запуске скрипта
 function OnInit()
-	is_quik_connected = numberToBool(isConnected())
+	quote_id = 0
+	is_quik_connected = tobool(isConnected())
 	printConfigsToLog()
 	if queue == nil then
 		queue = deque.new()
@@ -75,8 +75,15 @@ function printConfigsToLog()
 	else
 		logger:info("Cache file has datas")
 	end
-	logger:info("Connection with Quik's DataServer: %s", numberToBool(isConnected()))
+	logger:info("Connection with Quik's DataServer: %s", tobool(isConnected()))
 	logger:info("Connection with Remote data receiver: %s", tostring(is_connected))
 	logger:info("-------------------------")
 end
+
+
+function tobool(num)
+	if num == 1 then return true end
+	return false
+end
+
 return quikcallbacks

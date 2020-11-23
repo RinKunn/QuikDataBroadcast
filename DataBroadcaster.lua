@@ -52,13 +52,14 @@ local deque = require ("libs.deque")
 logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n")
 
 is_started = false
-is_connected = false
 is_quik_connected = false
 
 queue = nil
 
 
 message_sended_count = 0
+quote_id = 0
+
 
 
 function main()

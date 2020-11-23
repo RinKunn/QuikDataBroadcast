@@ -1,6 +1,6 @@
 local json = require ("libs.dkjson")
 
-local qdbccache = { version = "0.1"}
+local qdbccache = { version = "1.0"}
 qdbccache.__index = qdbccache
 
 -- Create cache
@@ -40,19 +40,6 @@ function qdbccache:appendCollection(obj_collection)
 	io.close(file)
 end
 
-
-
-
--- Extract all datas and delete cache file if necessary
--- function qdbccache:extractData(clear_cache)
-	-- local clear_cache_file = clear_cache or true
-	-- local json_collection = get_lines_from_file(self.cache_path)
-	-- for i, obj_json in ipairs(json_collection) do
-		
-	-- end
-	-- if clear_cache_file then os.remove(self.cache_path) end
-	
--- end
 
 -- Extract all datas as json format and delete cache file if necessary
 function qdbccache:extractDataAsJson()
