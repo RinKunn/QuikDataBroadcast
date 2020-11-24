@@ -80,6 +80,23 @@ function setValues(class_code, sec_code, prms, input_p)
 	return p
 end
 
+
+
+function isBond(class_code)
+	return inArray(class_code, MARKET_CLASS_CODES)
+end
+
+
+
+
+
+function inArray(val, tbl)
+	for ind=1, #tbl, 1 do
+		if tbl[ind] == val then return true end
+	end
+	return false
+end
+
 function isempty(s)
   return s == nil or s == ''
 end

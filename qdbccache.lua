@@ -3,12 +3,20 @@ local json = require ("libs.dkjson")
 local qdbccache = { version = "1.0"}
 qdbccache.__index = qdbccache
 
+local append_to_file, exists_file, get_lines_from_file, to_json, from_json
+
 -- Create cache
 function qdbccache:create(basedirpath)
 	local r = {}
 	setmetatable(r, qdbccache)
+	r.cache_dir = basedirpath
 	r.cache_path = basedirpath.."\\"..tostring(os.date('%Y%m%d'))..".txt"
 	return r
+end
+
+
+function qdbccache:refresh()
+	self.cache_path = self.cache_dir.."\\"..tostring(os.date('%Y%m%d'))..".txt"
 end
 
 -- Is Cache empty
@@ -27,27 +35,49 @@ function qdbccache:append(obj)
 	append_to_file(self.cache_path, obj_json)
 end
 
-
 -- Add collection of objects to cache
 function qdbccache:appendCollection(obj_collection)
 	if obj_collection == nil or #obj_collection == 0 then
 		return nil, 'Appending collection is null of empty'
 	end
 	local file = io.open(self.cache_path, "a+")
-	for i, obj_json in ipairs(obj_collection) do
+	local obj_json
+	for i, obj in ipairs(obj_collection) do
+		if type(obj) == 'string' then
+			obj_json = obj
+		else
+			obj_json = to_json(obj)
+		end
 		file:write(obj_json.."\n")
 	end
 	io.close(file)
 end
 
-
 -- Extract all datas as json format and delete cache file if necessary
-function qdbccache:extractDataAsJson()
+function qdbccache:extractDataAsJson(clear_cache)
 	local clear_cache_file = clear_cache or true
 	local json_collection, error_msg = get_lines_from_file(self.cache_path)
 	if clear_cache_file then os.remove(self.cache_path) end
 	return json_collection, error_msg
 end
+
+-- Extract all datas and delete cache file if necessary
+function qdbccache:extractData(clear_cache)
+	local clear_cache_file = clear_cache or true
+	local json_collection, error_msg = get_lines_from_file(self.cache_path)
+	if clear_cache_file then os.remove(self.cache_path) end
+	if json_collection == nil then
+		return json_collection, error_msg
+	end
+	
+	local obj_collection = {}
+	for i, obj_json in ipairs(json_collection) do
+		local obj = from_json(obj_json)
+		obj_collection[i] = obj
+	end
+	return obj_collection
+end
+
 
 --------local
 function append_to_file(filename, str)
@@ -56,13 +86,13 @@ function append_to_file(filename, str)
 	io.close(file)
 end
 
-function exists_file(filename)
+function exists_file (filename)
 	local file = io.open(filename, "rb")
 	if file then file:close() end
 	return file ~= nil
 end
 
-function get_lines_from_file(filename)
+function get_lines_from_file (filename)
 	local rlines = {}
 	local can_read, read_stream = pcall(io.lines, filename)
 	
@@ -75,7 +105,7 @@ function get_lines_from_file(filename)
 	return rlines
 end
 
-function to_json(obj)
+function to_json (obj)
     local status, str= pcall(json.encode, obj, { indent = false }) -- dkjson
     if status then
         return tostring(str)
@@ -84,7 +114,7 @@ function to_json(obj)
     end
 end
 
-function from_json(obj_json)
+function from_json (obj_json)
     local status, str= pcall(json.decode, obj_json, 1, nil) -- dkjson
     if status then
         return str

@@ -20,9 +20,10 @@ function receiverapi:connect()
 		if self.callback_client then
 			self.is_connected = true
 			pcall(self.callback_client.settimeout, self.callback_client, 1000, 't')
+			return true
 		end
     end
-	return self.callback_client ~= nil
+	return false
 end
 
 -- disconnect from remote tcp server
@@ -44,7 +45,7 @@ function receiverapi:sendStr(msg_str)
         if status and res then
             return true
         else
-            self:disconnect()
+            --self:disconnect()
             return false, "Connection lost with server: "..self.host..":"..self.port
         end
 	else
