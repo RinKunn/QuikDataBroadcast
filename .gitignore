@@ -4,4 +4,7 @@ cache/
 
 logs/
 
-test.lua
+test/logs
+
+unit_test_results.xml
+

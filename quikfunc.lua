@@ -1,7 +1,7 @@
 
 local quikfunc = {}
 
-local json = require ("libs.dkjson")
+local json = require ("dkjson")
 require ("fields")
 
 

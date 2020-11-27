@@ -10,7 +10,7 @@ local push_left = function(self, x)
   self.head = self.head - 1
 end
 
-local push_right_datas = function(self, tbl)
+local push_right_some = function(self, tbl)
   assert(tbl ~= nil)
   for i, x in ipairs(tbl) do
 	self.tail = self.tail + 1
@@ -33,21 +33,40 @@ local pop_right = function(self)
   self[self.tail] = nil
   self.tail = self.tail - 1
   if self:is_empty() then
-	head = 0
-	tail = 0
+	self.head = 0
+	self.tail = 0
   end
   return r
 end
 
 local pop_left = function(self)
   if self:is_empty() then return nil end
-  local r = self[self.head+1]
   self.head = self.head + 1
   local r = self[self.head]
   self[self.head] = nil
   if self:is_empty() then
-	head = 0
-	tail = 0
+	self.head = 0
+	self.tail = 0
+  end
+  return r
+end
+
+local pop_left_some = function(self, count)
+  if self:is_empty() then return nil end
+  if count < 1 then return nil end
+  if count == 1 then return pop_left(self) end
+  
+  local r = {}, i
+  for i=self.head+1,self.tail do
+    r[i-self.head] = self[i]
+	self[i] = nil
+	if i-self.head == count then break end
+  end
+  
+  self.head = self.head + count
+  if self:is_empty() then
+	self.head = 0
+	self.tail = 0
   end
   return r
 end
@@ -57,10 +76,11 @@ local length = function(self)
 end
 
 local is_empty = function(self)
-  return self:length() == 0
+  return self:length() <= 0
 end
 
 local contents = function(self)
+  if self:is_empty() then return nil end
   local r = {}
   for i=self.head+1,self.tail do
     r[i-self.head] = self[i]
@@ -136,11 +156,13 @@ end
 
 local methods = {
   push_right = push_right,
+  push_right_some = push_right_some,
   push_left = push_left,
   peek_right = peek_right,
   peek_left = peek_left,
   pop_right = pop_right,
   pop_left = pop_left,
+  pop_left_some = pop_left_some,
   rotate_right = rotate_right,
   rotate_left = rotate_left,
   remove_right = remove_right,
@@ -152,7 +174,8 @@ local methods = {
   contents = contents,
   clear_data = clear_data,
   extract_data = extract_data,
-  push_right_datas = push_right_datas,
+  
+  
 }
 
 local new = function()

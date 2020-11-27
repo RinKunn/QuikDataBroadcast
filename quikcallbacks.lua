@@ -21,10 +21,10 @@ end
 -- При соединении с сервером Quik
 function OnConnected()
 	logger:info('Connetion with Quik Server is established')
-	local old_cache_path = cache.cache_path
+	local old_filepath = cache.filepath
 	cache:refresh()
-	if cache.cache_path ~= old_cache_path then
-		logger:info('Cache path changed to: '..cache.cache_path)
+	if cache.filepath ~= old_filepath then
+		logger:info('Cache path changed to: '..cache.filepath)
 	end
 	is_connected = true
 end
@@ -52,12 +52,12 @@ end
 
 function LogPrintInitParams()
 	logger:info("-------------------------")
-	logger:info("Detected Quik version: ".. quikVersion .." and using cpath: "..package.cpath  , 0)
+	logger:info("Detected Quik version: %s", quikVersion)
 	logger:info("Parameters:")
 	logger:info("host=%s, port=%s", receiver.host, receiver.port)
-	logger:info("Cache dir=%s", cache.cache_dir)
-	logger:info("Cache path=%s", cache.cache_path)
-	if cache:isEmpty() then 
+	logger:info("Cache dir=%s", cache.dir)
+	logger:info("Cache path=%s", cache.filepath)
+	if cache:is_empty() then 
 		logger:info("Cache file is empty")
 	else
 		logger:info("Cache file has data")

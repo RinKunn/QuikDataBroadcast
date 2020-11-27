@@ -5,6 +5,7 @@ end
 
 quikVersion = nil
 script_path = "."
+libs_path = "\\libs\\"
 
 -- Loading suitable lua core lib for Quik
 if is_quik() then
@@ -37,8 +38,9 @@ if is_quik() then
 		libPath = "\\clibs\\5.1_"..linkage.."\\"
 	end
 end
-package.path = package.path .. ";" .. script_path .. "\\?.lua;" .. script_path .. "\\?.luac"..";"..".\\?.lua;"..".\\?.luac"
-package.cpath = package.cpath .. ";" .. script_path .. libPath .. '?.dll'..";".. '.' .. libPath .. '?.dll'
+
+package.path = package.path..";" ..script_path.."\\?.lua;" ..script_path.."\\?.luac;"..".\\?.lua;"..".\\?.luac;"..script_path..libs_path.."?.lua"
+package.cpath = package.cpath..";" .. script_path .. libPath .. '?.dll'..";".. '.' .. libPath .. '?.dll;'..script_path..libs_path.."?.lua"
 
 ----------------------------------------------------------------------------------------
 
@@ -48,10 +50,10 @@ local perf = {
 	lazy = {name = "Lazy", sleeptime = 1000}
 }
 
-require ("libs.loggingfile")
-local json = require ("libs.dkjson")
+require ("loggingfile")
 require ("quikcallbacks")
-local lqueue = require ("libs.deque")
+local json = require ("dkjson")
+local lqueue = require ("deque")
 local lcache = require ("qdbccache")
 local lreceiver = require ("receiverapi")
 
@@ -73,18 +75,20 @@ function main()
 		-- если нет соединения с сервером Quik, то данные не поступают
 		-- если queue не пуст, то скрипт отправляет все данные с очереди
 		-- а потом закрывает соединение с удаленным сервером
-		--logger:debug("Quik: %s, Server: %s, queue: %d, sended: %d", is_connected, receiver.is_connected, queue:length(), msg_sended_amount)
-		if is_connected or not queue:is_empty() then
+		logger:debug("Quik connected: %s, Server connected: %s, #queue: %d, sended: %d", is_connected, receiver.is_connected, queue:length(), msg_sended_amount)
 		
+		if is_connected or not queue:is_empty() then
+			logger:debug("Queue has data or connection with Quik is not closed")
 			-- проверка соединения с сервером
 			if not receiver.is_connected then
+				logger:debug("Trying to connect to remote server...")
 				if receiver:connect() then
 					logger:info('Connected to remote server!')
 					if not cache:isEmpty() then
 						local collect, err_msg = cache:extractData()
 						if collect == nil then error(err_msg) end
 						logger:info('Loaded %d datas from cache', #collect)
-						queue:push_right_datas(collect)
+						queue:push_right_some(collect)
 					else
 						logger:info("Cache is empty")
 					end
@@ -92,6 +96,7 @@ function main()
 			end
 			
 			if not receiver.is_connected then
+				logger:debug("Connection failed!")
 				SaveQueueToCache()
 			else
 				local msg = queue:pop_left()
@@ -124,6 +129,7 @@ end
 
 
 function SaveQueueToCache()
+	if queue:is_empty() then return end
 	local data = queue:extract_data()
 	cache:appendCollection(data)
 	logger:info("To cache added %d data", #data)

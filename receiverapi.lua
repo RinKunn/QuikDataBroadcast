@@ -1,4 +1,4 @@
-local socket = require ("libs.socket")
+local socket = require ("socket")
 
 local receiverapi = { version = "1.0"}
 receiverapi.__index = receiverapi
@@ -34,6 +34,8 @@ function receiverapi:disconnect()
 			pcall(self.callback_client.close, self.callback_client)
 			self.callback_client = nil
 		end
+	else
+		return false
 	end
 	return self.callback_client == nil
 end
@@ -45,11 +47,11 @@ function receiverapi:sendStr(msg_str)
         if status and res then
             return true
         else
-            --self:disconnect()
+            self:disconnect()
             return false, "Connection lost with server: "..self.host..":"..self.port
         end
 	else
-		return false, "Connection not established with server: "..self.host..":"..self.port
+		return nil, "Connection not established with server: "..self.host..":"..self.port
     end
 end
 

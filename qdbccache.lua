@@ -1,4 +1,4 @@
-local json = require ("libs.dkjson")
+local json = require ("dkjson")
 
 local qdbccache = { version = "1.0"}
 qdbccache.__index = qdbccache
@@ -7,21 +7,22 @@ local append_to_file, exists_file, get_lines_from_file, to_json, from_json
 
 -- Create cache
 function qdbccache:create(basedirpath)
+	if basedirpath == "" or basedirpath == nil then error("Input directory path is empty") end
 	local r = {}
 	setmetatable(r, qdbccache)
-	r.cache_dir = basedirpath
-	r.cache_path = basedirpath.."\\"..tostring(os.date('%Y%m%d'))..".txt"
+	r.dir = basedirpath
+	r.filepath = basedirpath.."\\"..tostring(os.date('%Y%m%d'))..".txt"
 	return r
 end
 
 
 function qdbccache:refresh()
-	self.cache_path = self.cache_dir.."\\"..tostring(os.date('%Y%m%d'))..".txt"
+	self.filepath = self.dir.."\\"..tostring(os.date('%Y%m%d'))..".txt"
 end
 
 -- Is Cache empty
-function qdbccache:isEmpty()
-	return not exists_file(self.cache_path)
+function qdbccache:is_empty()
+	return not exists_file(self.filepath)
 end
 
 -- Add object to cache
@@ -32,7 +33,7 @@ function qdbccache:append(obj)
 	else
 		obj_json = to_json(obj)
 	end
-	append_to_file(self.cache_path, obj_json)
+	append_to_file(self.filepath, obj_json)
 end
 
 -- Add collection of objects to cache
@@ -40,7 +41,7 @@ function qdbccache:appendCollection(obj_collection)
 	if obj_collection == nil or #obj_collection == 0 then
 		return nil, 'Appending collection is null of empty'
 	end
-	local file = io.open(self.cache_path, "a+")
+	local file = io.open(self.filepath, "a+")
 	local obj_json
 	for i, obj in ipairs(obj_collection) do
 		if type(obj) == 'string' then
@@ -55,17 +56,17 @@ end
 
 -- Extract all datas as json format and delete cache file if necessary
 function qdbccache:extractDataAsJson(clear_cache)
-	local clear_cache_file = clear_cache or true
-	local json_collection, error_msg = get_lines_from_file(self.cache_path)
-	if clear_cache_file then os.remove(self.cache_path) end
+	local clear_cache_file = clear_cache == nil or clear_cache
+	local json_collection, error_msg = get_lines_from_file(self.filepath)
+	if clear_cache_file then os.remove(self.filepath) end
 	return json_collection, error_msg
 end
 
 -- Extract all datas and delete cache file if necessary
 function qdbccache:extractData(clear_cache)
-	local clear_cache_file = clear_cache or true
-	local json_collection, error_msg = get_lines_from_file(self.cache_path)
-	if clear_cache_file then os.remove(self.cache_path) end
+	local clear_cache_file = clear_cache == nil or clear_cache
+	local json_collection, error_msg = get_lines_from_file(self.filepath)
+	if clear_cache_file then os.remove(self.filepath) end
 	if json_collection == nil then
 		return json_collection, error_msg
 	end
