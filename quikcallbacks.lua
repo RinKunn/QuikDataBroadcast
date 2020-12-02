@@ -1,5 +1,8 @@
 local quikcallbacks = {}
 require ("quikfunc")
+local lqueue = require ("deque")
+local lcache = require ("qdbccache")
+local lreceiver = require ("receiverapi")
 
 
 quote_id = 0
@@ -51,6 +54,9 @@ end
 ----------------------------------------------------------------
 
 function LogPrintInitParams()
+	queue = lqueue:new()
+	cache = lcache:create(getScriptPath().."\\cache\\")
+	receiver = lreceiver:create('127.0.0.1', 9090)
 	logger:info("-------------------------")
 	logger:info("Detected Quik version: %s", quikVersion)
 	logger:info("Parameters:")

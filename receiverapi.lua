@@ -1,4 +1,4 @@
-local socket = require ("socket")
+socket = require ("socket")
 
 local receiverapi = { version = "1.0"}
 receiverapi.__index = receiverapi

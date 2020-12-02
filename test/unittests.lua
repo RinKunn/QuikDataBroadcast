@@ -31,7 +31,11 @@ package.path = package.path .. ";"..base_path.."\\?.lua;"..base_path.."\\?.luac;
 package.cpath = package.cpath..";"..socketcore_path..'?.dll;' ..'.'..socketcore_path..'?.dll;'..testlibs_path.."?.lua"
 -----------------------------------------
 local lu = require('luaunit')
-
+local mockagne = require('mockagne')
+local file_exists, lines_from
+local when = mockagne.when
+local any = mockagne.any
+local verify = mockagne.verify
 
 -----------------------------------------
 			--	QUEUE  --
@@ -215,9 +219,8 @@ TestQueue = {}
 			--	CACHE  --
 -----------------------------------------
 local lcache = require ("qdbccache")
-local file_exists, lines_from
-
 TestCache = {}
+
 	function TestCache:setUp()
 		self.dir = io.popen("cd"):read('*l')
 		self.c = lcache:create(self.dir)
@@ -264,6 +267,14 @@ TestCache = {}
 		lu.assertFalse(self.c:is_empty())
 	end
 	
+	function TestCache:test_append3_length3()
+		self.c:appendCollection({{id = 1}, {id = 2}, {id = 3}})
+		
+		local clen = self.c:length()
+		
+		lu.assertTrue(file_exists(self.c.filepath))
+		lu.assertEquals(clen, 3)
+	end
 	
 	-- -------------------------
 	
@@ -323,59 +334,49 @@ TestCache = {}
 		lu.assertEquals(datas[3], {id = 3})
 	end
 	
-
+	
 -----------------------------------------
 		   --	RECEIVERAPI  --
 -----------------------------------------
 local lreceiver = require('receiverapi')
-local socket = require ('socket')
+socket = mockagne.getMock()
 
 TestReceiverApi = {}
 		function TestReceiverApi:setUp()
 			self.dr = lreceiver:create('127.0.0.1', 9091)
 			self.r = lreceiver:create('127.0.0.1', 9090)
-			self:runServer()
-		end
-		
-		function TestReceiverApi:tearDown()
-			self:closeServer()
-		end
-		
-		---------------------------------
-		
-		function TestReceiverApi:runServer()
-			os.execute('start pythonw '..base_path..'DataReceiver.py')
-			self.runned = true
-		end
-		
-		function TestReceiverApi:closeServer()
-			if self.runned then
-				os.execute('taskkill /IM pythonw.exe /F >nul')
+			local conv = function()
+				if not self.server_running then return nil end
+				return { send = function(...) return self.server_running, self.server_running end}
 			end
-			self.runned = false
+			when(socket.connect('127.0.0.1', 9090)).thenAnswerFn(conv)
+			when(socket.connect('127.0.0.1', 9091)).thenAnswer(nil)
 		end
-		
 		---------------------------------
 		
 		function TestReceiverApi:test_connect2DS_False()
-			local res = self.dr:connect()
+			self.server_running = false
+			local res = self.r:connect()
 			lu.assertFalse(res)
-			lu.assertFalse(self.dr.is_connected)
+			lu.assertFalse(self.r.is_connected)
 		end
 		
 		function TestReceiverApi:test_connect2RS_True()
+			self.server_running = true
 			local res = self.r:connect()
 			lu.assertTrue(res)
 			lu.assertTrue(self.r.is_connected)
 		end
 		
 		function TestReceiverApi:test_disconnect2DS_False()
+			self.server_running = false
 			local res = self.dr:disconnect()
 			lu.assertFalse(res)
 			lu.assertFalse(self.dr.is_connected)
 		end
 				
 		function TestReceiverApi:test_disconnect2RS_True()
+			self.server_running = true
 			local cres = self.r:connect()
 			lu.assertTrue(self.r.is_connected)
 			lu.assertTrue(cres)
@@ -386,11 +387,12 @@ TestReceiverApi = {}
 		end
 		
 		function TestReceiverApi:test_disconnect2RSShooted_True()
+			self.server_running = true
 			local cres = self.r:connect()
 			lu.assertTrue(self.r.is_connected)
 			lu.assertTrue(cres)
 			
-			self:closeServer()
+			self.server_running = false
 			
 			local res = self.r:disconnect()
 			lu.assertFalse(self.r.is_connected)
@@ -400,122 +402,44 @@ TestReceiverApi = {}
 		---------------------------------
 		
 		function TestReceiverApi:test_sendMsg2RS_ReturnTrue()
+			self.server_running = true
 			local cres = self.r:connect()
 			
 			local sres = self.r:sendStr("asdasd")
 			
 			lu.assertTrue(self.r.is_connected)
 			lu.assertTrue(cres)
+			lu.assertNotNil(self.r.callback_client)
 			lu.assertTrue(sres)
 		end
 		
 		function TestReceiverApi:test_sendMsg2DS_ReturnNil()
+			self.server_running = false
 			local cres = self.dr:connect()
 			
 			local sres = self.dr:sendStr("asdasd")
 			
 			lu.assertFalse(self.dr.is_connected)
 			lu.assertFalse(cres)
+			lu.assertNil(self.r.callback_client)
 			lu.assertNil(sres)
 		end
 		
 		function TestReceiverApi:test_sendMsg2RSShooted_ReturnFalse()
+			self.server_running = true
 			local cres = self.r:connect()
 			lu.assertTrue(self.r.is_connected)
 			lu.assertTrue(cres)
 			
-			self:closeServer()
+			self.server_running = false
 			local sres = self.r:sendStr("asdasd")
 			
 			lu.assertFalse(sres)
 			lu.assertFalse(self.r.is_connected)
+			lu.assertNil(self.r.callback_client)
 		end
-
-
-
------------------------------------------
-		 --	MAIN FUNCTION  --
------------------------------------------
-
-require ('DataBroadcaster')
-local copas = require('copas')
-local timer = require('copas.timer')
-
---- redefine global function ---
-
-isConnected = function() return 1 end
-message = function(msg) print(msg) end
-sleep = function (...) copas.sleep(tonumber(select(1, ...))/10000) end
-
-
-
-TestMain = {}
-	function TestMain:setUp()
-		self.logfile = getScriptPath().."\\logs\\"..os.date("%Y-%m-%d")..".log"
-	end
-	
-	function TestMain:tearDown()
-		--os.remove(self.logfile)
-	end
-
-	function TestMain:test_beforeRunning_logPrinted()
-		lu.assertFalse(is_started)
-		lu.assertFalse(is_connected)
-		lu.assertFalse(file_exists(self.logfile))
-		OnInit()
 		
-		lu.assertTrue(is_started)
-		lu.assertTrue(is_connected)
-		lu.assertTrue(file_exists(self.logfile))
-		lu.assertNotNil(queue)
-		lu.assertNotNil(cache)
-		lu.assertNotNil(receiver)
-		lu.assertTrue(queue:is_empty())
-		lu.assertTrue(cache:is_empty())
-		lu.assertFalse(receiver.is_connected)
-	end
-	
-	function TestMain:test_main()
-		OnInit()
-		copas.addthread(main)
-		copas.loop(runAfter(OnStop, 1000))
-		
-		lu.assertFalse(is_started)
-	end
-	
-	function TestMain:test_QuikConnectionLost()
-		OnInit()
-		is_connected = false
-		copas.addthread(main)
-		runAfter(OnConnected, 200)
-		runAfter(function() lu.assertTrue(is_connected) end, 300)
-		runAfter(OnDisconnected, 1200) -- нужна примерно секунда на попытки подклчюения
-		runAfter(function() lu.assertFalse(is_connected) end, 1300)
-		copas.loop(runAfter(OnStop, 1500))
-		
-		local sss = lu.assertFalse(is_started)
-	end
-	
 
-
-function runAfter(rfn, delayms, ...)
-	local arg = ...
-	timer.new(
-	{
-		delay = delayms/1000,
-		recurring = false,
-		callback = function(timer_obj)
-				rfn(arg)
-				timer_obj:cancel()
-			end
-	})
-end
-
-
-function runAfterMs(ms)
-	local ntime = os.clock() + ms/1000
-	repeat until os.clock() > ntime
-end
 
 function file_exists(file)
   local f = io.open(file, "rb")
@@ -531,8 +455,6 @@ function lines_from(file)
   end
   return flines
 end
-
-
 
 local runner = lu.LuaUnit.new()
 --runner:setOutputType("junit", "unit_test_results")

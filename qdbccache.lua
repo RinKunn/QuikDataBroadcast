@@ -3,7 +3,7 @@ local json = require ("dkjson")
 local qdbccache = { version = "1.0"}
 qdbccache.__index = qdbccache
 
-local append_to_file, exists_file, get_lines_from_file, to_json, from_json
+local append_to_file, exists_file, get_lines_from_file, to_json, from_json, createDirIfNotExists
 
 -- Create cache
 function qdbccache:create(basedirpath)
@@ -12,6 +12,7 @@ function qdbccache:create(basedirpath)
 	setmetatable(r, qdbccache)
 	r.dir = basedirpath
 	r.filepath = basedirpath.."\\"..tostring(os.date('%Y%m%d'))..".txt"
+	createDirIfNotExists(r.filepath)
 	return r
 end
 
@@ -23,6 +24,12 @@ end
 -- Is Cache empty
 function qdbccache:is_empty()
 	return not exists_file(self.filepath)
+end
+
+function qdbccache:length()
+	local clen = get_lines_from_file(self.filepath)
+	if clen == nil then return 0 end
+	return #clen
 end
 
 -- Add object to cache
@@ -104,6 +111,17 @@ function get_lines_from_file (filename)
 		rlines[#rlines + 1] = line
 	end
 	return rlines
+end
+
+function createDirIfNotExists(filename)
+	local fp, err = io.open(filename, "a")
+	if fp == nil then 
+		os.execute("mkdir cache")
+		fp, err = io.open(filename, "a")
+		if fp == nil then error(err) end
+	end
+	fp:close()
+	os.remove(filename)
 end
 
 function to_json (obj)

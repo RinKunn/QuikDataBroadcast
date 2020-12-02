@@ -53,9 +53,7 @@ local perf = {
 require ("loggingfile")
 require ("quikcallbacks")
 local json = require ("dkjson")
-local lqueue = require ("deque")
-local lcache = require ("qdbccache")
-local lreceiver = require ("receiverapi")
+
 
 logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n")
 
@@ -65,9 +63,9 @@ msg_sended_amount = 0
 
 
 local runmode = perf.lazy
-queue = lqueue:new()
-cache = lcache:create(getScriptPath().."\\cache\\")
-receiver = lreceiver:create('127.0.0.1', 9090)
+queue = nil
+cache = nil
+receiver = nil
 
 function main()
 	logger:info("Running mode: %s, run every %d ms.", runmode.name, runmode.sleeptime)
@@ -75,16 +73,16 @@ function main()
 		-- если нет соединения с сервером Quik, то данные не поступают
 		-- если queue не пуст, то скрипт отправляет все данные с очереди
 		-- а потом закрывает соединение с удаленным сервером
-		logger:debug("Quik connected: %s, Server connected: %s, #queue: %d, sended: %d", is_connected, receiver.is_connected, queue:length(), msg_sended_amount)
+		logger:debug("Quik connected: %s, Server connected: %s, #queue: %d, sended: %d, cache empty: %s", is_connected, receiver.is_connected, queue:length(), msg_sended_amount, cache:is_empty())
 		
 		if is_connected or not queue:is_empty() then
-			logger:debug("Queue has data or connection with Quik is not closed")
+			logger:debug("Queue has data or connection with Quik is open")
 			-- проверка соединения с сервером
 			if not receiver.is_connected then
 				logger:debug("Trying to connect to remote server...")
 				if receiver:connect() then
 					logger:info('Connected to remote server!')
-					if not cache:isEmpty() then
+					if not cache:is_empty() then
 						local collect, err_msg = cache:extractData()
 						if collect == nil then error(err_msg) end
 						logger:info('Loaded %d datas from cache', #collect)
@@ -101,12 +99,15 @@ function main()
 			else
 				local msg = queue:pop_left()
 				if msg ~= nil then
+					logger:debug('Sending message: %s', to_json(msg))
 					local res, err = receiver:sendStr(to_json(msg))
 					if not res then
 						-- не удалось отправить данные на сервер
-						logger:warn('Connection with server is lost! (%s)', receiver.is_connected)
+						logger:warn(err)
 						CloseConnection()
+						cache:append(msg)
 					else
+						logger:debug('Message sened: %s', to_json(msg))
 						msg_sended_amount = msg_sended_amount + 1
 					end
 				end
@@ -125,6 +126,7 @@ function main()
 	else
 		logger:info("Before closing queue was empty")
 	end
+	logger:info('Shutting down')
 end
 
 
@@ -136,10 +138,11 @@ function SaveQueueToCache()
 end
 
 function CloseConnection()
-	if not receiver.is_connected then return end
-	logger:info('Closing connection with remote server...')
-	receiver:disconnect()
-	logger:info('Connection closed!')
+	if receiver.is_connected then
+		logger:info('Closing connection with remote server...')
+		receiver:disconnect()
+		logger:info('Connection closed!')
+	end
 	logger:info('Before connection close %d datas were sent', msg_sended_amount)
 	msg_sended_amount = 0
 end
