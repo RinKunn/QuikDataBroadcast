@@ -10,7 +10,5 @@ test/cache
 
 test/unittests_main_copy.lua
 
-test/integ_test.lua
-
 unit_test_results.xml
 

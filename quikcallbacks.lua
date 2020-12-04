@@ -10,6 +10,9 @@ quote_id = 0
 -- При запуске скрипта
 function OnInit()
 	is_connected = tobool(isConnected())
+	queue = lqueue:new()
+	cache = lcache:create(getScriptPath()..'\\')
+	receiver = lreceiver:create('127.0.0.1', 9090)
 	LogPrintInitParams()
 	is_started = true
 end
@@ -54,9 +57,6 @@ end
 ----------------------------------------------------------------
 
 function LogPrintInitParams()
-	queue = lqueue:new()
-	cache = lcache:create(getScriptPath().."\\cache\\")
-	receiver = lreceiver:create('127.0.0.1', 9090)
 	logger:info("-------------------------")
 	logger:info("Detected Quik version: %s", quikVersion)
 	logger:info("Parameters:")
@@ -66,7 +66,7 @@ function LogPrintInitParams()
 	if cache:is_empty() then 
 		logger:info("Cache file is empty")
 	else
-		logger:info("Cache file has data")
+		logger:info("Cache len: %d", cache:length())
 	end
 	logger:info("Connection with Quik's DataServer: %s", is_connected)
 	--logger:info("Connection with Remote data receiver: %s", receiver.is_connected)

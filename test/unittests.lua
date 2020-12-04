@@ -108,6 +108,25 @@ TestQueue = {}
 	end
 	
 	
+	function TestQueue:test_pushLeftSomeAfterPushRight_didntRewrite()
+		self.q:push_right_some({{id = 4}, {id = 5}})
+		self.q:push_right({id = 6})
+		
+		self.q:push_left_some({{id = 1}, {id = 2}, {id = 3}})
+		
+		local data = self.q:contents()
+		lu.assertEquals(self.q:length(), 6)
+		lu.assertEquals(self.q.head, -3)
+		lu.assertEquals(self.q.tail, 3)
+		lu.assertEquals(data[1].id, 1)
+		lu.assertEquals(data[2].id, 2)
+		lu.assertEquals(data[3].id, 3)
+		lu.assertEquals(data[4].id, 4)
+		lu.assertEquals(data[5].id, 5)
+		lu.assertEquals(data[6].id, 6)
+	end
+	
+	
 	function TestQueue:test_getContents_AfterPush_Valid()
 		self.q:push_right_some({{id = 1}, {id = 2}, {id = 3}})
 		
@@ -222,9 +241,9 @@ local lcache = require ("qdbccache")
 TestCache = {}
 
 	function TestCache:setUp()
-		self.dir = io.popen("cd"):read('*l')
+		self.dir = io.popen("cd"):read('*l')..'\\'
 		self.c = lcache:create(self.dir)
-		self.cache_path = self.dir.."\\"..tostring(os.date('%Y%m%d'))..".txt"
+		self.cache_path = self.dir.."cache\\"..tostring(os.date('%Y%m%d'))..".txt"
 	end
 	
 	function TestCache:tearDown()
@@ -232,6 +251,19 @@ TestCache = {}
 	end
 	
 	-- -------------------------
+	
+	function TestCache:test_recreate_fileNotRewrite()
+		self.c:append({id = 1})
+		self.c:append({id = 2})
+		
+		local cch = lcache:create(self.dir)
+		cch:append({id = 3})
+		
+		lu.assertFalse(self.c:is_empty())
+		lu.assertFalse(cch:is_empty())
+		lu.assertEquals(cch:length(), 3)
+		lu.assertEquals(self.c:length(), 3)
+	end
 	
 	function TestCache:test_create_pathsCorrect()
 		lu.assertNotNil(self.c)

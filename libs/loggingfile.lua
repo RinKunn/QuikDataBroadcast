@@ -46,27 +46,35 @@ local logging = require"logging"
 local createDirIfNotExists
 local socket = require ("socket")
 
-function logging.file(filename, datePattern, logPattern)
+function logging.file(filename, datePattern, logPattern, maxLogLvl)
 	if type(filename) ~= "string" then
 		filename = "lualogging.log"
 	end
+	local maxLvl = maxLogLvl or "DEBUG"
+	local maxLvl = logging.Level[maxLvl]
+	
 	local filename = string.format(filename, os.date(datePattern))
 	createDirIfNotExists(filename)
 	return logging.new( function(self, level, msg)
+		if logging.Level[level] < maxLvl then return false end
+		print(maxLvl, level, logging.Level[maxLvl])
 		local fp, err = io.open(filename, "a")
 		local ms = "."..string.format('%.3f',socket.gettime()):match("%.(%d+)")
 		local str = logging.prepareLogMsg(logPattern, os.date("%Y.%m.%d %X")..ms, level, msg)
 		fp:write(str)
 		fp:close()
-		--if level == "INFO" then message(msg) end
+		if level == "INFO" then message(msg) end
 		return true
 	end)
 end
 
 function createDirIfNotExists(filename)
+	local fp, err = io.open(filename, "r")
+	if fp ~= nil then fp:close() return true end
+	
 	local fp, err = io.open(filename, "a")
-	if fp == nil then 
-		os.execute("mkdir logs")
+	if fp == nil then
+		os.execute("mkdir cache")
 		fp, err = io.open(filename, "a")
 		if fp == nil then error(err) end
 	end

@@ -11,14 +11,14 @@ function qdbccache:create(basedirpath)
 	local r = {}
 	setmetatable(r, qdbccache)
 	r.dir = basedirpath
-	r.filepath = basedirpath.."\\"..tostring(os.date('%Y%m%d'))..".txt"
+	r.filepath = basedirpath.."cache\\"..tostring(os.date('%Y%m%d'))..".txt"
 	createDirIfNotExists(r.filepath)
 	return r
 end
 
 
 function qdbccache:refresh()
-	self.filepath = self.dir.."\\"..tostring(os.date('%Y%m%d'))..".txt"
+	self.filepath = self.dir.."cache\\"..tostring(os.date('%Y%m%d'))..".txt"
 end
 
 -- Is Cache empty
@@ -114,8 +114,11 @@ function get_lines_from_file (filename)
 end
 
 function createDirIfNotExists(filename)
+	local fp, err = io.open(filename, "r")
+	if fp ~= nil then fp:close() return true end
+	
 	local fp, err = io.open(filename, "a")
-	if fp == nil then 
+	if fp == nil then
 		os.execute("mkdir cache")
 		fp, err = io.open(filename, "a")
 		if fp == nil then error(err) end

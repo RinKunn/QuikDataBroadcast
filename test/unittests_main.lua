@@ -42,7 +42,8 @@ local verify = mockagne.verify
 
 --- redefine global function ---
 isConnected = function() return 1 end
-message = function(msg) print(msg) end
+--message = function(msg) print(msg) end
+message = function(msg) end
 sleep = function (...) return coroutine.yield() end
 socket = mockagne.getMock()
 
@@ -51,7 +52,6 @@ TestMain = {}
 	function TestMain:setUp()
 		self.logfile = getScriptPath().."\\logs\\"..os.date("%Y-%m-%d")..".log"
 		local conv = function()
-			
 				if not self.server_running then return nil end
 				return { send = function(...) return self.server_running, self.server_running end}
 			end
@@ -66,8 +66,8 @@ TestMain = {}
 		is_started = false
 		is_connected = false
 		msg_sended_amount = 0
-		--os.remove(self.logfile)
-		--os.remove(cache.filepath)
+		os.remove(self.logfile)
+		os.remove(cache.filepath)
 		queue = nil
 		cache = nil
 		receiver = nil
@@ -103,25 +103,69 @@ TestMain = {}
 	end
 	
 	--[[ 
+	@event: Начальная инициализация
+	@condit: Quik disconnected, Remote connected, Cache is empty
+	@result: Не соединяется с удаленным сервером
+	]]
+	function TestMain:testInit_cacheEmptySR_notConnectedToRemote()
+		self.server_running = true
+		is_connected = false
+		lu.assertTrue(cache:is_empty())
+		local mr = coroutine.create(main)
+		
+		coroutine.resume(mr)
+		
+		lu.assertFalse(receiver.is_connected)
+		lu.assertTrue(queue:is_empty())
+		
+		OnStop()
+		coroutine.resume(mr)
+	end
+	
+	--[[ 
+	@event: Начальная инициализация
+	@condit: Quik disconnected, Remote connected, Cache has 2 data
+	@result: Соединяется с удаленным сервером и отправляет 1 данные
+	]]
+	function TestMain:testInit_cacheHasDataSR_ConnectedToRemoteAndSend()
+		file_append(cache.filepath, '{"id":1}\n{"id":2}\n')
+		self.server_running = true
+		is_connected = false
+		lu.assertEquals(cache:length(), 2)
+		local mr = coroutine.create(main)
+		
+		coroutine.resume(mr)
+		
+		lu.assertTrue(receiver.is_connected)
+		lu.assertEquals(queue:length(), 1)
+		lu.assertEquals(msg_sended_amount, 1)
+		
+		OnStop()
+		coroutine.resume(mr)
+	end
+	
+	
+	--[[ 
 	@event: Добавление данных в очередь
 	@condit: Quik connected, Remote disconnected
 	@result: Переносит все данные с очереди в кэш
 	]]
-	function TestMain:test_addDataToQueue_QCSS_saveToCache()
+	function TestMain:testAdd1DataToQueue_QCSS_added1ToCache()
 		self.server_running = false
+		is_connected = true
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
 		
 		queue:push_right({id = 1})
-		
 		coroutine.resume(mr)
-		lu.assertEquals(queue:length(), 0)
+		
+		local cacheLines = lines_from(cache.filepath)
+		lu.assertTrue(queue:is_empty())
+		lu.assertEquals(cache:length(), 1)
+		lu.assertEquals(cacheLines[1], '{"id":1}')
+		
 		OnStop()
 		coroutine.resume(mr)
-		local cacheLines = lines_from(cache.filepath)
-		lu.assertEquals(cacheLines[1], '{"id":1}')
-		lu.assertTrue(file_exists(cache.filepath))
-		
 	end
 	
 	--[[ 
@@ -129,29 +173,32 @@ TestMain = {}
 	@condit: Quik connected, Remote connected
 	@result: Отправляет все данные с очереди на сервер
 	]]
-	function TestMain:test_addDataToQueue_QCSR_sendToRemote()
+	function TestMain:testAdd1DataToQueue_QCSR_send1ToRemote()
 		self.server_running = true
+		is_connected = true
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
 		
 		queue:push_right({id = 1})
-		
 		coroutine.resume(mr)
-		lu.assertEquals(queue:length(), 0)
+		
+		lu.assertTrue(queue:is_empty())
+		lu.assertTrue(cache:is_empty())
+		lu.assertEquals(msg_sended_amount, 1)
+		
 		OnStop()
 		coroutine.resume(mr)
-		lu.assertFalse(file_exists(cache.filepath))
-		lu.assertEquals(msg_sended_amount, 1)
 	end
 	
 	--[[ 
 	@event: Добавление данных в очередь при загрузке cache
 	@condit: Quik connected, Remote connected
 	@result: добавленный объект пересылается после cache
+	
+	-- function TestMain:testAddDataToQueue_cacheLoading_sendToRemoteAfterLoading()
+		--TODO
+	-- end
 	]]
-	function TestMain:test_addDataToQueue_cacheLoading_sendToRemoteAfterLoading()
-		
-	end
 	
 	
 	------- QUIK CONNECTION EVENTS -------
@@ -160,8 +207,9 @@ TestMain = {}
 	@condit: Remote connected, queue = 0
 	@result: Закрывает соединение с сервером
 	]]
-	function TestMain:test_OnDisconnectedSR_closeRemote()
+	function TestMain:testOnDisconnected_SR_closeRemote()
 		self.server_running = true
+		is_connected = true
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
 		lu.assertTrue(receiver.is_connected)
@@ -170,10 +218,6 @@ TestMain = {}
 		coroutine.resume(mr)
 		
 		lu.assertFalse(receiver.is_connected)
-		lu.assertEquals(msg_sended_amount, 0)
-		lu.assertTrue(queue:is_empty())
-		lu.assertTrue(cache:is_empty())
-		
 		OnStop()
 		coroutine.resume(mr)
 	end
@@ -183,8 +227,9 @@ TestMain = {}
 	@condit: Remote disconnected, queue = 0
 	@result: ничего не делает
 	]]
-	function TestMain:test_OnDisconnectedSS_nothing()
+	function TestMain:testOnDisconnected_SS_nothing()
 		self.server_running = false
+		is_connected = true
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
 		lu.assertFalse(receiver.is_connected)
@@ -193,7 +238,26 @@ TestMain = {}
 		coroutine.resume(mr)
 		
 		lu.assertFalse(receiver.is_connected)
-		lu.assertEquals(msg_sended_amount, 0)
+		OnStop()
+		coroutine.resume(mr)
+	end
+	
+	--[[ 
+	@event: Разрыв связи с Quik'ом
+	@condit: Remote connected, queue > 0
+	@result: Отправляет все данные с очереди на сервер
+	]]
+	function TestMain:testOnDisconnected_queueHas1DataSR_send1ToRemote()
+		self.server_running = true
+		is_connected = true
+		local mr = coroutine.create(main)
+		coroutine.resume(mr)
+		
+		queue:push_right({id = 1})
+		OnDisconnected()
+		coroutine.resume(mr)
+		
+		lu.assertEquals(msg_sended_amount, 1)
 		lu.assertTrue(queue:is_empty())
 		lu.assertTrue(cache:is_empty())
 		
@@ -201,63 +265,37 @@ TestMain = {}
 		coroutine.resume(mr)
 	end
 	
-	
-	--[[ 
-	@event: Разрыв связи с Quik'ом
-	@condit: Remote connected, queue > 0
-	@result: Отправляет все данные с очереди на сервер
-	]]
-	function TestMain:test_OnDisconnectedSRqueue_sendToRemote()
-		self.server_running = true
-		local mr = coroutine.create(main)
-		coroutine.resume(mr)
-		
-		queue:push_right({id = 1})
-		OnDisconnected()
-		
-		coroutine.resume(mr)
-		lu.assertEquals(msg_sended_amount, 1)
-		coroutine.resume(mr)
-		
-		lu.assertFalse(receiver.is_connected)
-		lu.assertTrue(cache:is_empty())
-		
-		OnStop()
-		coroutine.resume(mr)
-	end
-	
-	
 	--[[
 	@event: Разрыв связи с Quik'ом
 	@condit: Remote disconnected, queue > 0
 	@result: Переносит все данные с очереди в кэш
 	]]
-	function TestMain:test_OnDisconnectedSSqueue_saveToCache() 
+	function TestMain:testOnDisconnected_queueHas1DataSS_save1ToCache() 
 		self.server_running = false
+		is_connected = true
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
 		
 		queue:push_right({id = 1})
 		OnDisconnected()
-		
 		coroutine.resume(mr)
+		
 		lu.assertEquals(msg_sended_amount, 0)
-		coroutine.resume(mr)
-		
-		lu.assertFalse(receiver.is_connected)
+		lu.assertTrue(queue:is_empty())
 		lu.assertFalse(cache:is_empty())
+		lu.assertEquals(cache:length(), 1)
 		
 		OnStop()
 		coroutine.resume(mr)
 	end
 	
-	
+
 	--[[ 
 	@event: Соединение с сервером Quik'а
 	@condit: cache = 0, сервер не запущен
 	@result: делает попытку подключения к Remote
 	]]
-	function TestMain:test_OnConnectedSS_connectntToRemote()
+	function TestMain:testOnConnected_SS_dontconnectToRemote()
 		self.server_running = false
 		is_connected = false
 		local mr = coroutine.create(main)
@@ -279,7 +317,7 @@ TestMain = {}
 	@condit: cache = 0, сервер запущен
 	@result: делает попытку подключения к Remote
 	]]
-	function TestMain:test_OnConnectedSR_connectToRemote()
+	function TestMain:testOnConnected_SR_connectToRemote()
 		self.server_running = true
 		is_connected = false
 		local mr = coroutine.create(main)
@@ -301,14 +339,14 @@ TestMain = {}
 	@condit: cache > 0, сервер не запущен
 	@result: делает попытку подключения к Remote
 	]]
-	function TestMain:test_OnConnectedSScache_cacheDidntLoad()
-		file_append(cache.filepath, '{"id": 1}\n{"id": 2}')
+	function TestMain:testOnConnected_cacheHas1DataSS_dontload1ToQueue()
+		file_append(cache.filepath, '{"id": 1}\n')
 		self.server_running = false
 		is_connected = false
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
-		lu.assertFalse(receiver.is_connected)
 		lu.assertFalse(cache:is_empty())
+		lu.assertTrue(queue:is_empty())
 		
 		OnConnected()
 		coroutine.resume(mr)
@@ -317,7 +355,7 @@ TestMain = {}
 		lu.assertTrue(is_connected)
 		lu.assertTrue(queue:is_empty())
 		lu.assertFalse(cache:is_empty())
-		
+		lu.assertEquals(cache:length(), 1)
 		OnStop()
 		coroutine.resume(mr)
 	end
@@ -327,24 +365,19 @@ TestMain = {}
 	@condit: cache > 0, сервер запущен
 	@result: делает попытку подключения к Remote
 	]]
-	function TestMain:test_OnConnectedSRcache_cacheLoaded()
-		file_append(cache.filepath, '{"id": 1}\n{"id": 2}')
+	function TestMain:testOnConnected_cacheHas1DataSR_load1ToQueueAndSend()
+		file_append(cache.filepath, '{"id": 1}\n')
 		self.server_running = true
 		is_connected = false
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
-		lu.assertFalse(receiver.is_connected)
-		lu.assertFalse(cache:is_empty())
+		lu.assertTrue(cache:is_empty())
+		lu.assertTrue(queue:is_empty())
 		
 		OnConnected()
 		coroutine.resume(mr)
 		
-		lu.assertTrue(receiver.is_connected)
-		lu.assertTrue(is_connected)
-		lu.assertFalse(queue:is_empty())
-		lu.assertEquals(queue:length(), 1)
-		lu.assertTrue(cache:is_empty())
-		
+		lu.assertEquals(msg_sended_amount, 1)
 		OnStop()
 		coroutine.resume(mr)
 	end
@@ -356,25 +389,21 @@ TestMain = {}
 	@condit: cache > 0, queue = 0
 	@result: переносит данные из cache в queue
 	]]
-	function TestMain:test_remoteConnectedcache_loadToQueue()
+	function TestMain:testRemoteConnected_cacheHas1Data_load1ToQueueAndSend()
 		file_append(cache.filepath, '{"id":1}\n')
 		self.server_running = false
+		is_connected = true
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
-		lu.assertEquals(cache:length(), 1)
-		
-		queue:push_right({id = 2})
-		coroutine.resume(mr)
-		lu.assertEquals(cache:length(), 2)
 		lu.assertTrue(queue:is_empty())
+		lu.assertEquals(cache:length(), 1)
 		
 		self.server_running = true
 		coroutine.resume(mr)
 		
 		lu.assertTrue(receiver.is_connected)
 		lu.assertTrue(cache:is_empty())
-		lu.assertFalse(queue:is_empty())
-		lu.assertEquals(queue:length(), 1)
+		lu.assertTrue(queue:is_empty())
 		lu.assertEquals(msg_sended_amount, 1)
 		
 		OnStop()
@@ -382,38 +411,82 @@ TestMain = {}
 	end
 	
 	--[[ 
-	@event: Разрыв соединения с Remote сервером
-	@condit: queue > 0
-	@result: переносит данные из queue в cache
+	@event: Cоединение с Remote сервером 
+	@condit: cache > 0, queue > 0
+	@result: переносит данные из cache в queue и отправляет первую
 	]]
-	function TestMain:test_remoteDisconnectedqueue_saveToCache() 
-		self.server_running = true
+	function TestMain:testRemoteConnected_cacheQueueHas2Data_load1ToQueueAnd2Send()
+		file_append(cache.filepath, '{"id":1}\n')
+		self.server_running = false
+		is_connected = true
 		local mr = coroutine.create(main)
 		coroutine.resume(mr)
 		
-		queue:push_right({st = 'sended'})
-		queue:push_right({st = 'send break and save to cache 1'})
-		queue:push_right({st = 'saved to cache 2'})
-		queue:push_right({st = 'saved to cache 3'})
-		coroutine.resume(mr) -- обработал 1
+		queue:push_right({id = 2})
+		self.server_running = true
+		coroutine.resume(mr)
 		
+		lu.assertTrue(receiver.is_connected)
 		lu.assertTrue(cache:is_empty())
-		lu.assertEquals(queue:length(), 3)
+		lu.assertEquals(queue:length(), 1)
 		lu.assertEquals(msg_sended_amount, 1)
+		lu.assertEquals(queue:peek_left().id, 2)
+		OnStop()
+		coroutine.resume(mr)
+	end
+	
+	--[[ 
+	@event: Разрыв соединения с Remote сервером при отправке сообщения
+	@condit: queue > 0
+	@result: переносит данные из queue в cache
+	]]
+	function TestMain:testRemoteDisconnected_send1Data_save1ToCache()
+		self.server_running = true
+		is_connected = true
+		local mr = coroutine.create(main)
+		coroutine.resume(mr)
+		lu.assertTrue(receiver.is_connected)
 		
+		queue:push_right({st = 'send break and save to cache 1'})		
 		self.server_running = false
 		coroutine.resume(mr)
 		
 		lu.assertFalse(receiver.is_connected)
 		lu.assertEquals(cache:length(), 1)
-		lu.assertEquals(queue:length(), 2)
+		lu.assertTrue(queue:is_empty())
 		lu.assertEquals(msg_sended_amount, 0)
 		
 		OnStop()
 		coroutine.resume(mr)
 		lu.assertEquals(coroutine.status(mr), 'dead')
-		lu.assertEquals(cache:length(), 3)
+	end
+	
+	--[[ 
+	@event: Разрыв соединения с Remote сервером при отправке сообщения
+	@condit: queue = 2
+	@result: переносит данные из queue в cache
+	]]
+	function TestMain:testRemoteDisconnected_queueHas2Data_save2ToCache()
+		self.server_running = true
+		is_connected = true
+		local mr = coroutine.create(main)
+		coroutine.resume(mr)
+		lu.assertTrue(receiver.is_connected)
 		
+		queue:push_right({st = 'send break and save to cache 1'})
+		queue:push_right({st = 'saved to cache 2'})
+		self.server_running = false
+		coroutine.resume(mr)
+		
+		lu.assertFalse(receiver.is_connected)
+		lu.assertEquals(cache:length(), 1)
+		lu.assertEquals(queue:length(), 1)
+		lu.assertEquals(msg_sended_amount, 0)
+		
+		OnStop()
+		coroutine.resume(mr)
+		lu.assertEquals(coroutine.status(mr), 'dead')
+		lu.assertEquals(cache:length(), 2)
 	end
 	
 	--[[ 
@@ -421,7 +494,27 @@ TestMain = {}
 	@condit: cache > 0, queue > 0 (перед соединением сервера Quik может занести новые данные)
 	@result: переносит данные из cache в queue перед имеющимися данными
 	]]
-	function TestMain:test_remoteCon_cacheGt0queueGt0_loadToQueueBeforeExistData() end
+	function TestMain:testRemoteConnected_cacheQueue_loadToQueueBeforeExistData()
+		file_append(cache.filepath, '{"id":1}\n')
+		self.server_running = false
+		local mr = coroutine.create(main)
+		coroutine.resume(mr)
+		
+		queue:push_right({id = 2})
+		queue:push_right({id = 3})
+		self.server_running = true
+		coroutine.resume(mr)
+		
+		lu.assertEquals(msg_sended_amount, 1)
+		lu.assertTrue(cache:is_empty())
+		lu.assertEquals(queue:length(), 2)
+		lu.assertEquals(queue:peek_left().id, 2)
+		lu.assertEquals(queue:peek_right().id, 3)
+		
+		OnStop()
+		coroutine.resume(mr)
+		lu.assertEquals(cache:length(), 2)
+	end
 	
 
 function file_exists(file)

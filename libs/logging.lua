@@ -48,6 +48,7 @@ local MAX_LEVELS = #LEVEL
 for i=1,MAX_LEVELS do
 	LEVEL[LEVEL[i]] = i
 end
+logging.Level = LEVEL
 
 -- private log function, with support for formating a complex log message.
 local function LOG_MSG(self, level, fmt, ...)

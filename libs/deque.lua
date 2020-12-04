@@ -16,7 +16,16 @@ local push_right_some = function(self, tbl)
 	self.tail = self.tail + 1
 	self[self.tail] = x
   end
-  
+end
+
+local push_left_some = function(self, tbl)
+  assert(tbl ~= nil)
+  self.head = self.head - #tbl
+  local old_head = self.head + 1
+  for i, x in ipairs(tbl) do
+	self[old_head] = x
+	old_head = old_head + 1
+  end
 end
 
 local peek_right = function(self)
@@ -158,6 +167,7 @@ local methods = {
   push_right = push_right,
   push_right_some = push_right_some,
   push_left = push_left,
+  push_left_some = push_left_some,
   peek_right = peek_right,
   peek_left = peek_left,
   pop_right = pop_right,

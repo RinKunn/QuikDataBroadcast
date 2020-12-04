@@ -55,20 +55,26 @@ require ("quikcallbacks")
 local json = require ("dkjson")
 
 
-logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n")
+logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n", logging.INFO)
 
 is_started = false
 is_connected = false
+is_cache_loading = false
 msg_sended_amount = 0
-
 
 local runmode = perf.lazy
 queue = nil
 cache = nil
 receiver = nil
 
+
 function main()
 	logger:info("Running mode: %s, run every %d ms.", runmode.name, runmode.sleeptime)
+	
+	if not cache:is_empty() then
+		ConnectToRemoteServerIfNotConnected()
+	end
+	
 	while is_started do
 		-- если нет соединени€ с сервером Quik, то данные не поступают
 		-- если queue не пуст, то скрипт отправл€ет все данные с очереди
@@ -77,21 +83,7 @@ function main()
 		
 		if is_connected or not queue:is_empty() then
 			logger:debug("Queue has data or connection with Quik is open")
-			-- проверка соединени€ с сервером
-			if not receiver.is_connected then
-				logger:debug("Trying to connect to remote server...")
-				if receiver:connect() then
-					logger:info('Connected to remote server!')
-					if not cache:is_empty() then
-						local collect, err_msg = cache:extractData()
-						if collect == nil then error(err_msg) end
-						logger:info('Loaded %d datas from cache', #collect)
-						queue:push_right_some(collect)
-					else
-						logger:info("Cache is empty")
-					end
-				end
-			end
+			ConnectToRemoteServerIfNotConnected()
 			
 			if not receiver.is_connected then
 				logger:debug("Connection failed!")
@@ -119,6 +111,8 @@ function main()
 		sleep(runmode.sleeptime)
 	end
 	
+	CloseConnection()
+	
 	-- ѕосле остановки скрипта
 	if not queue:is_empty() then
 		logger:info("Before closing queue had data: %d", queue:length())
@@ -130,11 +124,31 @@ function main()
 end
 
 
+
+function ConnectToRemoteServerIfNotConnected()
+	if not receiver.is_connected then
+		logger:debug("Trying to connect to remote server...")
+		if receiver:connect() then
+			logger:info('Connected to remote server!')
+			LoadCacheToQueue()
+		end
+	end
+end
+
+function LoadCacheToQueue()
+	if cache:is_empty() then logger:info("Cache is empty. Nothing to laod") return end
+	
+	local collect, err_msg = cache:extractData()
+	if collect == nil then error(err_msg) end
+	logger:info('Loaded %d datas from cache', #collect)
+	queue:push_left_some(collect)
+end
+
 function SaveQueueToCache()
 	if queue:is_empty() then return end
 	local data = queue:extract_data()
 	cache:appendCollection(data)
-	logger:info("To cache added %d data", #data)
+	logger:info("Saved %d data to cache", #data)
 end
 
 function CloseConnection()
@@ -167,3 +181,8 @@ function CheckMode()
 	end
 	if old_mode ~= runmode then logger:debug("--Mode changed to %s", runmode.name) end
 end
+
+
+--[[
+lua unittests_main.lua TestMain.testRemoteConnected_cacheQueue_loadToQueueBeforeExistData
+]]
