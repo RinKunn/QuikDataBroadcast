@@ -30,16 +30,14 @@ BOND_MAIN_INFO =
 	{'trade_date_code',	'STRING', 'дата торгов'}
 }
 
-QUOTES_PARAMS = 
+BOND_REALTIME_PARAMS = 
 {
+	{'isincode',		'STRING', 'isin'},
+	{'class_code',		'STRING', 'код класса'},
+	{'code',			'STRING', 'код бумаги'},
 	{'bid',				'NUMERIC', 'спрос'},
 	{'offer',			'NUMERIC', 'предложение'},
 	{'duration',        'NUMERIC', 'дюрация'},
-	{'class_code',		'STRING', 'код класса'}
-}
-
-TRADES_PARAMS = 
-{
 	{'time',			'STRING',  'Время последней сделки'},
 	{'last',			'NUMERIC', 'Цена последней сделки'},
 	{'yield',			'NUMERIC', 'Доходность последней сделки'},
@@ -48,12 +46,34 @@ TRADES_PARAMS =
 	{'valtoday',		'NUMERIC', 'оборот в деньгах'}
 }
 
+BOND_REALTIME_RPS_PARAMS = 
+{
+	{'isincode',		'STRING', 'isin'},
+	{'class_code',		'STRING', 'код класса'},
+	{'code',			'STRING', 'код бумаги'},
+	{'time',			'STRING',  'Время последней сделки'},
+	{'last',			'NUMERIC', 'Цена последней сделки'},
+	{'yield',			'NUMERIC', 'Доходность последней сделки'},
+	{'numtrades',		'NUMERIC', 'количество сделок за сегодня'},
+	{'voltoday',		'NUMERIC', 'оборот в бумагах'},
+	{'valtoday',		'NUMERIC', 'оборот в деньгах'}
+}
+
+BOND_REALTIME_CHANGECHECK_PARAMS = 
+{
+	{'bid',				'NUMERIC', 'спрос'},
+	{'offer',			'NUMERIC', 'предложение'},
+	{'duration',        'NUMERIC', 'дюрация'},
+	{'time',			'STRING',  'Время последней сделки'}
+}
 
 -- MARKET_CODES_RUB = {'TQCB', 'TQOB'}
 -- MARKET_CODES_EURUSD = {'TQOD', 'TQOE'}
 -- RPS_CODES_RUB = {'PTOB', 'PSOB'}
 -- RPS_CODES_EUR = {'PSEO'}
 -- RPS_CODES_USD = {'PTOD', 'PSEU'}
+
+
 
 
 

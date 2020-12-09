@@ -5,6 +5,7 @@ cache/
 logs/
 
 test/logs
+tee.lua
 
 test/cache
 

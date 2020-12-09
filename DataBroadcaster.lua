@@ -50,10 +50,10 @@ local perf = {
 	lazy = {name = "Lazy", sleeptime = 1000}
 }
 
+
 require ("loggingfile")
 require ("quikcallbacks")
 local json = require ("dkjson")
-
 
 logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n", logging.INFO)
 

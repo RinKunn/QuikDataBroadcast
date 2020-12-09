@@ -515,8 +515,88 @@ TestMain = {}
 		coroutine.resume(mr)
 		lu.assertEquals(cache:length(), 2)
 	end
-	
 
+local t = mockagne.getMock()
+getParamEx = t.getParamEx
+
+TestOnParam = {}
+	function TestOnParam:setUp()
+		when(t.getParamEx('TQOB', 'Bond1', 'class_code')).thenAnswer({param_image = 'TQOB'})
+		when(t.getParamEx('TQOB', 'Bond1', 'code')).thenAnswer({param_image = 'Bond1'})
+		when(t.getParamEx('TQOB', 'Bond1', 'bid')).thenAnswer({param_image = '101.5', param_value = 101.5})
+		when(t.getParamEx('TQOB', 'Bond1', 'offer')).thenAnswer({param_image = '101.8', param_value = 101.8})
+		when(t.getParamEx('TQOB', 'Bond1', 'time')).thenAnswer({param_image = '13:45:11', param_value = 11531})
+		when(t.getParamEx('TQOB', 'Bond1', 'yield')).thenAnswer({param_image = '8.5', param_value = 8.5})
+		OnInit()
+	end
+	
+	function TestOnParam:tearDown()
+		queue = nil
+		bondsLastInfo = nil
+		quote_id = 0
+	end
+	
+	function TestOnParam:test_ClassCodeBond_updateAndAddQueue()
+		OnParam('TQOB', 'Bond1')
+		
+		lu.assertNotNil(bondsLastInfo)
+		lu.assertEquals(dictLen(bondsLastInfo), 1)
+		lu.assertEquals(queue:length(), 1)
+		lu.assertEquals(queue:peek_left().msg_type, 'info')
+		lu.assertEquals(queue:peek_left().id, 1)
+	end
+	
+	function TestOnParam:test_DontChangedTracingField_notUpdateNotAddQueue()
+		OnParam('TQOB', 'Bond1')
+		OnParam('TQOB', 'Bond1')
+		
+		lu.assertNotNil(bondsLastInfo)
+		lu.assertEquals(dictLen(bondsLastInfo), 1)
+		lu.assertEquals(bondsLastInfo['Bond1']['time'], '13:45:11')
+		lu.assertEquals(queue:length(), 1)
+	end
+	
+	function TestOnParam:test_ChangedTracingField_updateAndAddQueue()
+		OnParam('TQOB', 'Bond1')
+		lu.assertEquals(bondsLastInfo['Bond1']['time'], '13:45:11')
+		when(t.getParamEx('TQOB', 'Bond1', 'time')).thenAnswer({param_image = '13:45:12', param_value = 11532})
+		OnParam('TQOB', 'Bond1')
+		
+		lu.assertNotNil(bondsLastInfo)
+		lu.assertEquals(dictLen(bondsLastInfo), 1)
+		lu.assertEquals(queue:length(), 2)
+		lu.assertEquals(bondsLastInfo['Bond1']['time'], '13:45:12')
+	end
+	
+	function TestOnParam:test_ChangedAnotherFiled_notUpdateNotAddQueue()
+		OnParam('TQOB', 'Bond1')
+		when(t.getParamEx('TQOB', 'Bond1', 'yield')).thenAnswer({param_image = '9.0', param_value = 9.0})
+		OnParam('TQOB', 'Bond1')
+		
+		lu.assertNotNil(bondsLastInfo)
+		lu.assertEquals(dictLen(bondsLastInfo), 1)
+		lu.assertEquals(queue:length(), 1)
+	end
+	
+	function TestOnParam:test_ClassCodeWrong_notAdded()
+		OnParam('TTTT', 'Bond1')
+		
+		lu.assertEquals(dictLen(bondsLastInfo), 0)
+		lu.assertEquals(queue:length(), 0)
+	end
+	
+	function TestOnParam:test_ClassCodeRPS_notUpdateAddQueue()
+		when(t.getParamEx('PTOB', 'Bond2', 'class_code')).thenAnswer({param_image = 'PTOB'})
+		when(t.getParamEx('PTOB', 'Bond2', 'code')).thenAnswer({param_image = 'Bond2'})
+		OnParam('PTOB', 'Bond2')
+		
+		lu.assertEquals(dictLen(bondsLastInfo), 0)
+		lu.assertEquals(queue:length(), 1)
+		lu.assertEquals(queue:peek_left().msg_type, 'rpsinfo')
+		lu.assertEquals(queue:peek_left().id, 1)
+	end
+	
+	
 function file_exists(file)
   local f = io.open(file, "rb")
   if f then f:close() end
@@ -537,6 +617,12 @@ function lines_from(file)
     flines[#flines + 1] = line
   end
   return flines
+end
+
+function dictLen(tbl)
+	local count = 0
+	for i, v in pairs(tbl) do count = count + 1 end
+	return count
 end
 
 local runner = lu.LuaUnit.new()

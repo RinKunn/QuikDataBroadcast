@@ -9,6 +9,8 @@
 
 -- CHANGES 1.0.3 by Girin:
 -- addded function 'thenAnswerFn', unlike 'thenAnswer' that execute funtion, not value
+-- CHANGES 1.0.4 by Girin:
+-- can rewrite return value
 --
 local M = {
     VERSION = "1.0.3"
@@ -102,7 +104,7 @@ end
 
 local function getReturn(self, method, ...)
     for i = 1, #self.expected_returns do
-        local candidate = self.expected_returns[i]
+        local candidate = self.expected_returns[i]	
         if (candidate.mock == self and candidate.key == method and compareArgs({...}, candidate.args)) then
             if candidate.tp == 'val' then 
 				return unpack(candidate.returnvalue)
@@ -122,6 +124,18 @@ local function find_invoke(mock, method, expected_call_arguments, strict)
             return stored_calls[i], i
         end
     end
+end
+
+local function find_expection(self, method, ...)
+	local findIndex = -1
+    for i=1, #self.expected_returns do
+		local candidate = self.expected_returns[i]
+		if (candidate.mock == self and candidate.key == method and compareArgs({...}, candidate.args)) then
+			findIndex = i
+			break
+        end
+	end
+	return findIndex
 end
 
 local function capture(reftable, refkey)
@@ -153,7 +167,10 @@ end
 
 local function expect(self, method, returnvalue, ...)
     local expectation = { mock = self, key = method, returnvalue = returnvalue, args = {...}, tp = 'val' }
-    table.insert(self.expected_returns, expectation)
+	local ind = find_expection(self, method, ...)
+	if ind > 0 then self.expected_returns[ind].returnvalue = returnvalue
+	else table.insert(self.expected_returns, expectation)
+	end
 end
 
 --todo

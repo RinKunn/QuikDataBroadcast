@@ -1,11 +1,12 @@
 local quikcallbacks = {}
-require ("quikfunc")
+local qfunc = require ("quikfunc")
 local lqueue = require ("deque")
 local lcache = require ("qdbccache")
 local lreceiver = require ("receiverapi")
 
-
 quote_id = 0
+
+local isBondChanged, LogPrintInitParams, tobool
 
 -- При запуске скрипта
 function OnInit()
@@ -13,6 +14,7 @@ function OnInit()
 	queue = lqueue:new()
 	cache = lcache:create(getScriptPath()..'\\')
 	receiver = lreceiver:create('127.0.0.1', 9090)
+	bondsLastInfo = {}
 	LogPrintInitParams()
 	is_started = true
 end
@@ -41,19 +43,27 @@ function OnDisconnected()
 	is_connected = false
 end
 
-
+-- При получении новых данных из таблицы обезличенных сделок
 function OnParam(class_code, sec_code)
-	if not isBond(class_code) then return end
-	quote_id = quote_id + 1
 	local dat = {}
-	dat = getSecurityQuotesInfo(class_code, sec_code)
+	if qfunc.isBond(class_code) then
+		if not isBondChanged(class_code, sec_code) then return end
+		dat.msg_type = 'info'
+		dat.data = qfunc.getRealTimeInfo(class_code, sec_code)
+		bondsLastInfo[sec_code] = dat.data
+	elseif qfunc.isRFS(class_code) then
+		dat.msg_type = 'rpsinfo'
+		dat.data = qfunc.getRealTimeRPSInfo(class_code, sec_code)
+	else 
+		return
+	end
+	
+	quote_id = quote_id + 1
 	dat.id = quote_id
-	dat.msg_type = 'OnParam'
 	queue:push_right(dat)
 end
 
 
-----------------------------------------------------------------
 ----------------------------------------------------------------
 
 function LogPrintInitParams()
@@ -78,6 +88,11 @@ function tobool(num)
 	return false
 end
 
+
+function isBondChanged(class_code, sec_code)
+	if bondsLastInfo[sec_code] == nil then return true end
+	return qfunc.isChanged(class_code, sec_code, bondsLastInfo[sec_code])
+end
 
 
 return quikcallbacks

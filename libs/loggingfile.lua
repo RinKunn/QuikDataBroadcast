@@ -57,7 +57,6 @@ function logging.file(filename, datePattern, logPattern, maxLogLvl)
 	createDirIfNotExists(filename)
 	return logging.new( function(self, level, msg)
 		if logging.Level[level] < maxLvl then return false end
-		print(maxLvl, level, logging.Level[maxLvl])
 		local fp, err = io.open(filename, "a")
 		local ms = "."..string.format('%.3f',socket.gettime()):match("%.(%d+)")
 		local str = logging.prepareLogMsg(logPattern, os.date("%Y.%m.%d %X")..ms, level, msg)

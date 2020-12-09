@@ -1,2 +1,2 @@
-lua unittests.lua -o TAP
-lua unittests_main.lua -o TAP
+lua unittests.lua
+lua unittests_main.lua
