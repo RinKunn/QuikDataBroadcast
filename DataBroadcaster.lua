@@ -55,7 +55,7 @@ require ("loggingfile")
 require ("quikcallbacks")
 local json = require ("dkjson")
 
-logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n", logging.INFO)
+logger = logging.file(getScriptPath().."\\logs\\".."%s.log", "%Y-%m-%d", "%date|%level: %message\n", logging.DEBUG)
 
 is_started = false
 is_connected = false

@@ -6,7 +6,8 @@ local lreceiver = require ("receiverapi")
 
 quote_id = 0
 
-local isBondChanged, LogPrintInitParams, tobool
+local isBondChanged, LogPrintInitParams, tobool, getMessageFromData, AddBondsInfoToQueueIfNotSended
+bondsinfo_sendeddate = nil
 
 -- При запуске скрипта
 function OnInit()
@@ -17,6 +18,7 @@ function OnInit()
 	bondsLastInfo = {}
 	LogPrintInitParams()
 	is_started = true
+	AddBondsInfoToQueueIfNotSended()
 end
 
 -- При остановке скрипта
@@ -35,12 +37,14 @@ function OnConnected()
 		logger:info('Cache path changed to: '..cache.filepath)
 	end
 	is_connected = true
+	AddBondsInfoToQueueIfNotSended()
 end
 
 -- При разрыве соединении с сервером Quik
 function OnDisconnected()
 	logger:info("Connection lost with Quik Server!")
 	is_connected = false
+	quote_id = 0
 end
 
 -- При получении новых данных из таблицы обезличенных сделок
@@ -48,18 +52,13 @@ function OnParam(class_code, sec_code)
 	local dat = {}
 	if qfunc.isBond(class_code) then
 		if not isBondChanged(class_code, sec_code) then return end
-		dat.msg_type = 'info'
-		dat.data = qfunc.getRealTimeInfo(class_code, sec_code)
+		dat = getMessageFromData(qfunc.getRealTimeInfo(class_code, sec_code), 'info')
 		bondsLastInfo[sec_code] = dat.data
 	elseif qfunc.isRFS(class_code) then
-		dat.msg_type = 'rpsinfo'
-		dat.data = qfunc.getRealTimeRPSInfo(class_code, sec_code)
+		dat = getMessageFromData(qfunc.getRealTimeRPSInfo(class_code, sec_code), 'rpsinfo')
 	else 
 		return
 	end
-	
-	quote_id = quote_id + 1
-	dat.id = quote_id
 	queue:push_right(dat)
 end
 
@@ -93,6 +92,41 @@ function isBondChanged(class_code, sec_code)
 	if bondsLastInfo[sec_code] == nil then return true end
 	return qfunc.isChanged(class_code, sec_code, bondsLastInfo[sec_code])
 end
+
+function getBondsInfo()
+	return getBondsInfoList()
+end
+
+function AddBondsInfoToQueueIfNotSended()
+	if bondsinfo_sendeddate == nil or bondsinfo_sendeddate ~= os.date('%x') then
+		logger:info("Bondinfo didnt send today. Collecting...")
+		local bonds = getBondsInfo()
+		if bonds == nil or #bonds == 0 then
+			error('Cannot load bonds info!')
+		end
+		for i = 1, #bonds do
+			bonds[i] = getMessageFromData(bonds[i], 'bondinfo')
+		end
+		logger:info("To queue added %d data of bondinfo", #bonds)
+		queue:push_left_some(bonds)
+		bondsinfo_sendeddate = os.date('%x')
+	else
+		logger:info("bondsinfo_sendeddate = %s", bondsinfo_sendeddate)
+	end
+end
+
+function getMessageFromData(data, msg_type)
+	quote_id = quote_id + 1
+	local dat = {}
+	dat.data = data
+	dat.msg_type = msg_type
+	dat.id = quote_id
+	return dat
+end
+
+
+bondinfo = {}
+
 
 
 return quikcallbacks

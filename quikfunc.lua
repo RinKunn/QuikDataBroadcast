@@ -21,9 +21,11 @@ function getBondsInfoList()
 	local class_codes = MARKET_CLASS_CODES
 	for i,class_code in ipairs(class_codes) do
 		local sec_codes = split(getClassSecurities(class_code), ',')
-		for j,sec_code in ipairs(sec_codes) do
-			local sec_info = getSecInfoByPrms(class_code, sec_code, QUOTES_PARAMS)
-			table.insert(p, sec_code)
+		if sec_codes ~= nil then
+			for j,sec_code in ipairs(sec_codes) do
+				local sec_info = getSecInfoByPrms(class_code, sec_code, BOND_MAIN_INFO)
+				table.insert(p, sec_info)
+			end
 		end
 	end
 	return p
@@ -77,8 +79,9 @@ function inArray(val, tbl)
 	return false
 end
 
-local function split(s, delimiter)
+function split(s, delimiter)
     result = {};
+	if s == nil then return nil end
     for m in (s..delimiter):gmatch("(.-)"..delimiter) do
         table.insert(result, m);
     end

@@ -46,7 +46,9 @@ isConnected = function() return 1 end
 message = function(msg) end
 sleep = function (...) return coroutine.yield() end
 socket = mockagne.getMock()
-
+local qmock = mockagne.getMock()
+getClassSecurities = qmock.getClassSecurities
+getParamEx = qmock.getParamEx
 
 TestMain = {}
 	function TestMain:setUp()
@@ -56,6 +58,12 @@ TestMain = {}
 				return { send = function(...) return self.server_running, self.server_running end}
 			end
 		when(socket.connect('127.0.0.1', 9090)).thenAnswerFn(conv)
+		when(qmock.getClassSecurities('TQCB')).thenAnswer('Bond1,Bond2')
+		when(qmock.getParamEx('TQCB', 'Bond1', 'code')).thenAnswer({param_image = 'Bond1'})
+		when(qmock.getParamEx('TQCB', 'Bond1', 'days_to_mat_date')).thenAnswer({param_value = 150})
+		when(qmock.getParamEx('TQCB', 'Bond2', 'code')).thenAnswer({param_image = 'Bond2'})
+		when(qmock.getParamEx('TQCB', 'Bond2', 'days_to_mat_date')).thenAnswer({param_value = 190})
+		bondsinfo_sendeddate = os.date('%x')
 		OnInit()
 	end
 	
@@ -66,7 +74,7 @@ TestMain = {}
 		is_started = false
 		is_connected = false
 		msg_sended_amount = 0
-		os.remove(self.logfile)
+		--os.remove(self.logfile)
 		os.remove(cache.filepath)
 		queue = nil
 		cache = nil
@@ -515,18 +523,60 @@ TestMain = {}
 		coroutine.resume(mr)
 		lu.assertEquals(cache:length(), 2)
 	end
-
-local t = mockagne.getMock()
-getParamEx = t.getParamEx
+	
+	function TestMain:testBondInfo_IfTodayNotSended_addedBondInfoToQueue()
+		self.server_running = false
+		bondsinfo_sendeddate = nil
+		OnConnected()
+		
+		lu.assertEquals(queue:length(), 2)
+		lu.assertEquals(queue:peek_left().msg_type, 'bondinfo')
+		lu.assertNotNil(queue:peek_left().data)
+		lu.assertEquals(queue:peek_left().data.code, 'Bond1')
+	end
+	
+	function TestMain:testBondInfo_IfTodaySended_dontAddedBondInfoToQueue()
+		self.server_running = false
+		bondsinfo_sendeddate = nil
+		local mr = coroutine.create(main)
+		OnConnected()
+		coroutine.resume(mr)
+		
+		OnDisconnected()
+		coroutine.resume(mr)
+		
+		OnConnected()
+		coroutine.resume(mr)
+		
+		lu.assertEquals(queue:length(), 0)
+		lu.assertEquals(cache:length(), 2)
+	end
+	
+	function TestMain:testBondInfo_ConnectionLostOnSending_addToCache()
+		self.server_running = true
+		bondsinfo_sendeddate = nil
+		local mr = coroutine.create(main)
+		OnConnected()
+		coroutine.resume(mr)
+		lu.assertEquals(msg_sended_amount, 1)
+		
+		self.server_running = false
+		coroutine.resume(mr)
+		
+		lu.assertEquals(queue:length(), 0)
+		lu.assertEquals(cache:length(), 1)
+		lu.assertEquals(bondsinfo_sendeddate, os.date('%x'))
+	end
+	
 
 TestOnParam = {}
 	function TestOnParam:setUp()
-		when(t.getParamEx('TQOB', 'Bond1', 'class_code')).thenAnswer({param_image = 'TQOB'})
-		when(t.getParamEx('TQOB', 'Bond1', 'code')).thenAnswer({param_image = 'Bond1'})
-		when(t.getParamEx('TQOB', 'Bond1', 'bid')).thenAnswer({param_image = '101.5', param_value = 101.5})
-		when(t.getParamEx('TQOB', 'Bond1', 'offer')).thenAnswer({param_image = '101.8', param_value = 101.8})
-		when(t.getParamEx('TQOB', 'Bond1', 'time')).thenAnswer({param_image = '13:45:11', param_value = 11531})
-		when(t.getParamEx('TQOB', 'Bond1', 'yield')).thenAnswer({param_image = '8.5', param_value = 8.5})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'class_code')).thenAnswer({param_image = 'TQOB'})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'code')).thenAnswer({param_image = 'Bond1'})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'bid')).thenAnswer({param_image = '101.5', param_value = 101.5})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'offer')).thenAnswer({param_image = '101.8', param_value = 101.8})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'time')).thenAnswer({param_image = '13:45:11', param_value = 11531})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'yield')).thenAnswer({param_image = '8.5', param_value = 8.5})
 		OnInit()
 	end
 	
@@ -559,7 +609,7 @@ TestOnParam = {}
 	function TestOnParam:test_ChangedTracingField_updateAndAddQueue()
 		OnParam('TQOB', 'Bond1')
 		lu.assertEquals(bondsLastInfo['Bond1']['time'], '13:45:11')
-		when(t.getParamEx('TQOB', 'Bond1', 'time')).thenAnswer({param_image = '13:45:12', param_value = 11532})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'time')).thenAnswer({param_image = '13:45:12', param_value = 11532})
 		OnParam('TQOB', 'Bond1')
 		
 		lu.assertNotNil(bondsLastInfo)
@@ -570,7 +620,7 @@ TestOnParam = {}
 	
 	function TestOnParam:test_ChangedAnotherFiled_notUpdateNotAddQueue()
 		OnParam('TQOB', 'Bond1')
-		when(t.getParamEx('TQOB', 'Bond1', 'yield')).thenAnswer({param_image = '9.0', param_value = 9.0})
+		when(qmock.getParamEx('TQOB', 'Bond1', 'yield')).thenAnswer({param_image = '9.0', param_value = 9.0})
 		OnParam('TQOB', 'Bond1')
 		
 		lu.assertNotNil(bondsLastInfo)
@@ -586,8 +636,8 @@ TestOnParam = {}
 	end
 	
 	function TestOnParam:test_ClassCodeRPS_notUpdateAddQueue()
-		when(t.getParamEx('PTOB', 'Bond2', 'class_code')).thenAnswer({param_image = 'PTOB'})
-		when(t.getParamEx('PTOB', 'Bond2', 'code')).thenAnswer({param_image = 'Bond2'})
+		when(qmock.getParamEx('PTOB', 'Bond2', 'class_code')).thenAnswer({param_image = 'PTOB'})
+		when(qmock.getParamEx('PTOB', 'Bond2', 'code')).thenAnswer({param_image = 'Bond2'})
 		OnParam('PTOB', 'Bond2')
 		
 		lu.assertEquals(dictLen(bondsLastInfo), 0)
@@ -595,8 +645,10 @@ TestOnParam = {}
 		lu.assertEquals(queue:peek_left().msg_type, 'rpsinfo')
 		lu.assertEquals(queue:peek_left().id, 1)
 	end
-	
-	
+
+
+
+
 function file_exists(file)
   local f = io.open(file, "rb")
   if f then f:close() end
